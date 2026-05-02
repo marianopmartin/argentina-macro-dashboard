@@ -29,11 +29,15 @@ TC publicado en el mismo balance.
        brutas − ctas_ctes_otras_monedas − obligaciones_organismos
               − repos_pasivos − depositos_tesoro
 
-2. `netas_tradicional` (alineada con press, agrega ajuste manual swap China):
+2. `netas_tradicional` (alineada con prensa, agrega ajuste manual swap China):
        netas_balance − swap_china_estimado
 
-3. `netas_fmi` (más estricta, agrega ajustes adicionales):
-       netas_tradicional − swap_eeuu − desembolsos_fmi_neto
+3. `netas_colega` (metodología "todos los pasivos USD de corto plazo del BCRA"):
+       brutas − ctas_ctes_otras_monedas − obligaciones_organismos
+              − repos_pasivos − swap_china − bopreal_corto_plazo
+       NO descuenta depósitos del Tesoro (no son pasivo BCRA, son del Ejecutivo).
+       NO descuenta swap EEUU ni FMI desembolso (es deuda del Tesoro, no del BCRA).
+       SÍ descuenta BOPREAL con plazo remanente <1 año (snapshot manual).
 """
 
 from __future__ import annotations
@@ -56,16 +60,20 @@ SWAP_CHINA_ACTIVACION_PARCIAL: dict[str, float] = {
 }
 
 
-# Ajustes manuales para componentes no separables del balance ni computables
-# dinámicamente (swap EEUU, desembolso FMI neto desde fecha base).
+# Ajustes manuales para componentes no separables del balance.
+# `bopreal_corto_plazo`: stock de BOPREAL del BCRA con vencimiento remanente <1 año.
+# El balance del BCRA tiene BOPREAL agregado (Row 83) sin desglose por serie. Las series
+# tienen vencimientos distintos: 1A (oct-25), 1B (oct-25), 1C (jul-26), 1D (oct-26),
+# 2 (jun-27), 3 (may-26), 4/5 (post-2027). Snapshot manual a actualizar con el calendario
+# de vencimientos reales que publica BCRA en su comunicado de BOPREAL.
 AJUSTES_MANUALES: dict[str, dict[str, float]] = {
-    "2023-06-30": {"swap_eeuu": 0, "fmi_desembolso_neto": 0},
-    "2023-12-31": {"swap_eeuu": 0, "fmi_desembolso_neto": 0},
-    "2024-12-31": {"swap_eeuu": 0, "fmi_desembolso_neto": 0},
-    "2025-04-30": {"swap_eeuu": 0, "fmi_desembolso_neto": 7000},   # nuevo programa FMI
-    "2025-09-30": {"swap_eeuu": 0, "fmi_desembolso_neto": 7500},
-    "2025-11-25": {"swap_eeuu": 2500, "fmi_desembolso_neto": 8000},
-    "2026-02-10": {"swap_eeuu": 2500, "fmi_desembolso_neto": 8300},
+    "2023-06-30": {"bopreal_corto_plazo": 0},     # BOPREAL aún no existía
+    "2023-12-31": {"bopreal_corto_plazo": 0},
+    "2024-06-30": {"bopreal_corto_plazo": 1500},  # primeras series
+    "2024-12-31": {"bopreal_corto_plazo": 3000},
+    "2025-06-30": {"bopreal_corto_plazo": 5000},
+    "2025-12-31": {"bopreal_corto_plazo": 6500},
+    "2026-04-30": {"bopreal_corto_plazo": 7000},  # series 1B/1C/1D vencen en 2026
 }
 
 
@@ -112,7 +120,7 @@ def _swap_china_usd_on_index(idx: pd.DatetimeIndex) -> pd.Series:
 
 
 def _ajustes_on_index(idx: pd.DatetimeIndex) -> pd.DataFrame:
-    """Interpola ajustes manuales (swap EEUU, FMI) y computa swap China dinámicamente
+    """Interpola ajustes manuales (BOPREAL <1y) y computa swap China dinámicamente
     desde CNY/USD."""
     snap_rows = []
     for f, comp in AJUSTES_MANUALES.items():
@@ -120,7 +128,7 @@ def _ajustes_on_index(idx: pd.DatetimeIndex) -> pd.DataFrame:
     snap = pd.DataFrame(snap_rows).sort_values("fecha")
     out = pd.DataFrame(index=idx)
     out.index.name = "fecha"
-    for col in ("swap_eeuu", "fmi_desembolso_neto"):
+    for col in ("bopreal_corto_plazo",):
         s = snap.set_index("fecha")[col].reindex(idx.union(snap["fecha"])).sort_index()
         s = s.interpolate(method="time").ffill().bfill()
         out[col] = s.reindex(idx)
@@ -136,8 +144,8 @@ def reservas_netas_history(
 
     Columnas:
       fecha, brutas, ctas_ctes_otras_monedas, obligaciones_organismos, repos_pasivos,
-      depositos_tesoro, deg_neto, swap_china (manual), swap_eeuu (manual),
-      fmi_desembolso_neto (manual), netas_balance, netas_tradicional, netas_fmi.
+      depositos_tesoro, deg_neto, swap_china (dinámico), bopreal_corto_plazo (manual),
+      netas_balance, netas_tradicional, netas_colega.
 
     Frecuencia: semanal (snapshots BCRA del 7, 15, 23 y fin de mes).
     """
@@ -148,11 +156,20 @@ def reservas_netas_history(
     bal = bal[(bal["fecha"] >= pd.Timestamp(start)) & (bal["fecha"] <= pd.Timestamp(end))]
     if bal.empty:
         return pd.DataFrame()
-    # Sumar ajustes manuales
+    # Sumar ajustes manuales (bopreal_1y) + swap China dinámico
     ajustes = _ajustes_on_index(pd.DatetimeIndex(bal["fecha"]))
     df = bal.merge(ajustes.reset_index(), on="fecha", how="left")
-    # Renombrar reservas_brutas → brutas para coherencia con código existente
     df = df.rename(columns={"reservas_brutas": "brutas"})
+    # Versiones de netas
     df["netas_tradicional"] = df["netas_balance"] - df["swap_china"]
-    df["netas_fmi"] = df["netas_tradicional"] - df["swap_eeuu"] - df["fmi_desembolso_neto"]
+    # Netas colega: NO descuenta depositos_tesoro (es del Tesoro, no del BCRA);
+    # SÍ descuenta BOPREAL <1y (pasivo BCRA en USD de corto plazo).
+    df["netas_colega"] = (
+        df["brutas"]
+        - df["ctas_ctes_otras_monedas"]
+        - df["obligaciones_organismos"]
+        - df["repos_pasivos"]
+        - df["swap_china"]
+        - df["bopreal_corto_plazo"]
+    )
     return df.sort_values("fecha").reset_index(drop=True)

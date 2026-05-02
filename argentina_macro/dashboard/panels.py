@@ -633,8 +633,8 @@ def render_fx(start: date, end: date) -> None:
         fig.add_trace(go.Scatter(x=rn["fecha"], y=rn["netas_tradicional"],
                                  name="Netas tradicional (− swap China)",
                                  line=dict(color="#6366f1", width=2)))
-        fig.add_trace(go.Scatter(x=rn["fecha"], y=rn["netas_fmi"],
-                                 name="Netas FMI (− swap EEUU − FMI desembolso)",
+        fig.add_trace(go.Scatter(x=rn["fecha"], y=rn["netas_colega"],
+                                 name="Netas pasivos BCRA <1y (incluye BOPREAL)",
                                  line=dict(color="#f59e0b", width=2, dash="dash")))
         fig.add_hline(y=0, line_color="#888", line_width=1)
         fig.update_layout(title="Reservas brutas y 3 versiones de netas (millones USD, semanal)",
@@ -654,11 +654,11 @@ def render_fx(start: date, end: date) -> None:
             (c1, "Ctas. Ctes. otras monedas", "ctas_ctes_otras_monedas",
              "Encajes USD del sistema financiero"),
             (c2, "Obligaciones org. internac.", "obligaciones_organismos",
-             "BIS + multilaterales (FMI excl.)"),
+             "BIS + multilaterales"),
             (c3, "Repos pasivos", "repos_pasivos",
              "SEDESA + bancos comerciales"),
             (c4, "Depósitos Tesoro Nacional", "depositos_tesoro",
-             "Fondos Tesoro en BCRA"),
+             "Fondos Tesoro en BCRA (no resta colega)"),
             (c5, "DEG neto (FMI SDR)", "deg_neto",
              "IMF Special Drawing Rights"),
         ]
@@ -667,36 +667,36 @@ def render_fx(start: date, end: date) -> None:
 
         # Ajustes manuales / dinámicos (no separables del balance)
         st.markdown(
-            "**Ajustes adicionales** (no extraíbles del balance — viven en \"Otros pasivos\"):"
+            "**Ajustes adicionales** (no extraíbles del balance):"
         )
-        c6, c7, c8 = st.columns(3)
+        c6, c7 = st.columns(2)
         c6.metric("Swap China (PBoC)", f"−${last['swap_china']:,.0f} M",
-                  delta="130 bn CNY / CNY-USD del día", delta_color="off")
-        c7.metric("Swap EEUU (Tesoro)", f"−${last['swap_eeuu']:,.0f} M",
-                  delta="anuncio Bessent nov-2025", delta_color="off")
-        c8.metric("FMI desembolso neto", f"−${last['fmi_desembolso_neto']:,.0f} M",
-                  delta="solo metodología FMI", delta_color="off")
+                  delta="130 bn CNY / CNY-USD spot", delta_color="off")
+        c7.metric("BOPREAL <1 año", f"−${last['bopreal_corto_plazo']:,.0f} M",
+                  delta="snapshot manual por serie", delta_color="off")
 
         st.caption(
             f"**{last['fecha'].strftime('%d-%b-%Y')}**: "
             f"Brutas **${last['brutas']:,.0f}M** → "
             f"Netas balance **${last['netas_balance']:,.0f}M** → "
             f"Netas tradicional **${last['netas_tradicional']:,.0f}M** → "
-            f"Netas FMI **${last['netas_fmi']:,.0f}M**. "
+            f"Netas pasivos BCRA <1y **${last['netas_colega']:,.0f}M**. "
             f"Fuente: serieanuali.xls (BCRA, semanal). Conversión a USD vía TC mayorista del balance."
         )
         st.info(
             "**Notas metodológicas**:  \n"
-            "• **Netas balance**: solo líneas del XLS oficial. Versión más rigurosa pero "
-            "diverge de la prensa porque el balance NO separa swap China de \"Otros pasivos\".  \n"
-            "• **Netas tradicional**: suma swap China **calculado dinámicamente** como "
-            "`130 bn CNY × (1/CNY-USD)`. La línea total es 130 bn yuanes; en USD vale "
-            "$18-19 bn según el yuan del momento — por eso distintas consultoras reportan "
-            "$18 bn o $19 bn según el día y vintage de conversión usado.  \n"
-            "• **Netas FMI**: además resta swap EEUU ($2.5 bn desde nov-2025) y desembolsos "
-            "netos del FMI desde el período base del programa.  \n"
-            "• **BOPREAL** (~$12.4 bn USD en bills BCRA en moneda extranjera) NO se resta "
-            "contablemente hoy pero es \"reserva negativa futura\" (vence 2025-27)."
+            "• **Netas balance**: solo líneas extraíbles del XLS oficial. La versión más rigurosa "
+            "contablemente, pero diverge de la prensa porque el balance NO separa swap China de "
+            "\"Otros pasivos\".  \n"
+            "• **Netas tradicional**: agrega el swap China **calculado dinámicamente** como "
+            "`130 bn CNY × (1/CNY-USD spot)`. Por eso distintas consultoras reportan $18-19 bn "
+            "según el yuan del momento.  \n"
+            "• **Netas pasivos BCRA <1y**: metodología \"todos los pasivos USD de corto plazo del "
+            "BCRA\". Resta encajes, swap China, repos, obligaciones organismos y **BOPREAL con "
+            "vencimiento <1 año**. **No** descuenta depósitos del Tesoro (no es pasivo del BCRA), "
+            "swap EEUU ni desembolsos FMI (es deuda del Tesoro, no del BCRA).  \n"
+            "• **BOPREAL stock total** (~$12.4 bn USD, Row 83) está agregado en el balance sin "
+            "desglose por serie. El snapshot manual estima la porción <1 año."
         )
 
     # ── 3. Balanza comercial ──────────────────────────────────────────
