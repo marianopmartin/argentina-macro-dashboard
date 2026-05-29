@@ -144,7 +144,10 @@ def fetch_emae_general(serie: str = "desest") -> pd.DataFrame:
     Devuelve DataFrame con columnas fecha (datetime) y valor.
     """
     raw = _download_emae_xls("mensual")
-    df = pd.read_excel(io.BytesIO(raw), sheet_name="EMAE", header=None)
+    # INDEC renombró la hoja ("EMAE" → "Tabla"). El archivo mensual tiene una sola
+    # hoja, así que tomamos la primera sin importar el nombre.
+    xls = pd.ExcelFile(io.BytesIO(raw))
+    df = pd.read_excel(xls, sheet_name=xls.sheet_names[0], header=None)
     # Filtrar filas con mes (col 1) y año en col 0 (forward-fill)
     df = df.iloc[:, :8].copy()
     df.columns = ["anio", "mes", "orig", "yoy_orig", "desest", "mm_desest",
