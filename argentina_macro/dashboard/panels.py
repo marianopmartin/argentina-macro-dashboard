@@ -80,6 +80,13 @@ def _bcra(name: str, start: date, end: date) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
+def _bcra_m3(start: date, end: date) -> pd.DataFrame:
+    """M3 diario construido desde BCRA (M2 + plazo fijo privado), no el mensual de
+    datos.gob.ar que tiene ~2-3 meses de lag."""
+    return bcra.fetch_m3(start, end)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
 def _indec(name: str, start: date, end: date, representation: str = "value") -> pd.DataFrame:
     return indec.fetch(name, start, end, representation)
 
@@ -414,9 +421,9 @@ def render_liquidity_inflation(start: date, end: date) -> None:
 
     base = _to_monthly_eom(_bcra("base_monetaria", start, end), how="last")
     m2 = _to_monthly_eom(_bcra("m2_nivel", start, end), how="last")
-    m3_df = _indec("m3_pesos", start, end)
-    m3 = (m3_df.set_index("fecha")["valor"]
-          if not m3_df.empty else pd.Series(dtype=float))
+    m3_eom = _to_monthly_eom(_bcra_m3(start, end), how="last")
+    m3 = (m3_eom.set_index("fecha")["valor"]
+          if not m3_eom.empty else pd.Series(dtype=float))
 
     base_s = (base.set_index("fecha")["valor"]
               if not base.empty else pd.Series(dtype=float))
@@ -452,13 +459,13 @@ def render_monetary(start: date, end: date) -> None:
     with c1:
         _line_nominal_real_usd(_bcra("base_monetaria", start, end), ipc, tc,
                                "Base monetaria")
-        _line_nominal_real_usd(_indec("m3_pesos", start, end), ipc, tc,
-                               "M3 en pesos")
+        _line_nominal_real_usd(_bcra_m3(start, end), ipc, tc,
+                               "M3 en pesos (diario, M2 + plazo fijo)")
     with c2:
         _line_nominal_real_usd(_bcra("m2_nivel", start, end), ipc, tc,
                                "M2 (nivel)")
         _line_nominal_real_usd(_indec("m3_pesos_y_usd", start, end), ipc, tc,
-                               "M3* (pesos + depósitos USD valuados en $)")
+                               "M3* (pesos + depósitos USD — mensual, INDEC)")
 
 
 
