@@ -1349,3 +1349,11 @@ def render_inflation_predictor(start: date, end: date) -> None:
         "en los próximos 4 meses. Las bandas IC95 se abren con el horizonte — "
         "la incertidumbre crece más allá de 2-3 meses."
     )
+    st.caption(
+        "⚠️ **Efecto ventana móvil**: el modelo usa lags 1–6 de cada agregado. "
+        "Cuando un shock monetario sale de esa ventana, su contribución desaparece "
+        "y el pronóstico salta al equilibrio implícito por los supuestos. "
+        "Ej.: la caída de M3 de enero-2026 (−6.6% m/m) está actuando como ancla "
+        "deflacionaria en los primeros horizontes; cuando sale del lag-6 (h≈4 meses) "
+        "el pronóstico converge a ~3.5%."
+    )
