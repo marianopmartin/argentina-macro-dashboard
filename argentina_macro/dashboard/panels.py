@@ -252,30 +252,53 @@ def _line_nominal_real_usd(
     s.index = s.index.to_period("M").to_timestamp()
     ipc_s.index = ipc_s.index.to_period("M").to_timestamp()
     tc_s.index = tc_s.index.to_period("M").to_timestamp()
-    df = pd.concat([s.rename("nom"), ipc_s.rename("ipc"), tc_s.rename("tc")], axis=1).dropna()
+    # Outer join — cada serie tiene su propio rango de validez
+    df = pd.concat([s.rename("nom"), ipc_s.rename("ipc"), tc_s.rename("tc")], axis=1).sort_index()
+    # Recortar al rango donde al menos el nominal exista
+    df = df[df["nom"].notna()]
     if df.empty or len(df) < 2:
         st.warning(f"Sin overlap para: {title}")
         return
-    ipc_last = df["ipc"].iloc[-1]
-    df["real"] = df["nom"] * ipc_last / df["ipc"]
-    df["usd"] = df["nom"] / df["tc"]
-    base = df.iloc[0]
-    df["nom_idx"] = df["nom"] / base["nom"] * 100
-    df["real_idx"] = df["real"] / base["real"] * 100
-    df["usd_idx"] = df["usd"] / base["usd"] * 100
+    # Período base de indexación: primer mes donde existen las 3 series (para que los
+    # tres índices estén normalizados a la misma fecha = 100)
+    base_idx = df.dropna(subset=["nom", "ipc", "tc"]).index
+    if len(base_idx) == 0:
+        st.warning(f"Sin overlap inicial 3-series para: {title}")
+        return
+    base_date = base_idx[0]
+    base_nom = float(df.loc[base_date, "nom"])
+    base_ipc = float(df.loc[base_date, "ipc"])
+    base_tc = float(df.loc[base_date, "tc"])
 
-    base_label = df.index[0].strftime("%b-%Y")
-    ipc_last_label = ipc.iloc[-1]["fecha"].strftime("%b-%Y")
+    # Real: requiere ipc disponible; usa último IPC observado como deflactor
+    ipc_last_idx = df["ipc"].dropna().index[-1]
+    ipc_last_val = float(df.loc[ipc_last_idx, "ipc"])
+    df["real"] = df["nom"] * ipc_last_val / df["ipc"]
+    df["usd"] = df["nom"] / df["tc"]
+
+    # Índices (base mes inicial = 100). Real se trunca al último IPC.
+    df["nom_idx"] = df["nom"] / base_nom * 100
+    df["real_idx"] = (df["nom"] * ipc_last_val / df["ipc"]) / (base_nom * ipc_last_val / base_ipc) * 100
+    df["usd_idx"] = df["usd"] / (base_nom / base_tc) * 100
+
+    base_label = base_date.strftime("%b-%Y")
+    ipc_last_label = ipc_last_idx.strftime("%b-%Y")
+    real_series = df["real_idx"].where(df["ipc"].notna())
+    usd_series = df["usd_idx"].where(df["tc"].notna())
+
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Scatter(x=df.index, y=df["nom_idx"], name="Nominal $",
-                             line=dict(color="#1f77b4", width=2.2)),
+                             line=dict(color="#1f77b4", width=2.2),
+                             connectgaps=False),
                   secondary_y=False)
-    fig.add_trace(go.Scatter(x=df.index, y=df["real_idx"],
+    fig.add_trace(go.Scatter(x=df.index, y=real_series,
                              name=f"Real (en $ {ipc_last_label})",
-                             line=dict(color="#6366f1", width=2, dash="dash")),
+                             line=dict(color="#6366f1", width=2, dash="dash"),
+                             connectgaps=False),
                   secondary_y=True)
-    fig.add_trace(go.Scatter(x=df.index, y=df["usd_idx"], name="En USD",
-                             line=dict(color="#f59e0b", width=2, dash="dot")),
+    fig.add_trace(go.Scatter(x=df.index, y=usd_series, name="En USD",
+                             line=dict(color="#f59e0b", width=2, dash="dot"),
+                             connectgaps=False),
                   secondary_y=True)
     fig.update_layout(title=title,
                       xaxis_title=None, height=height + 50, hovermode="x unified",
