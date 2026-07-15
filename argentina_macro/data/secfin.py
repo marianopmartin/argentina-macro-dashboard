@@ -58,6 +58,10 @@ LICITACIONES_SLUGS_2026: list[str] = [
     "resultado-de-la-licitacion-de-instrumentos-del-tesoro-nacional-en-pesos-y-en-dolares",
     "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-en",
     "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-0",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-1",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-3",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-4",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-5",
 ]
 
 _TASA_RE = re.compile(r"capitalizable\s+([\d,\.]+)\s*%", re.IGNORECASE)
