@@ -58,6 +58,22 @@ LICITACIONES_SLUGS_2026: list[str] = [
     "resultado-de-la-licitacion-de-instrumentos-del-tesoro-nacional-en-pesos-y-en-dolares",
     "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-en",
     "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-0",
+    # Abril 2026
+    "resultado-de-la-licitacion-para-la-conversion-de-la-lelink-con-vencimiento-30-de-abril-de",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-1",
+    # Mayo 2026
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-2",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-3",
+    # Junio 2026
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-4",
+    "resultado-de-la-licitacion-para-la-conversion-del-bono-dolar-linked-con-vencimiento-30-de",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-5",
+    # Julio 2026
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-6",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-8",
+    # Agosto 2026
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-10",
+    "resultado-de-la-licitacion-por-efectivo-de-instrumentos-del-tesoro-nacional-denominados-11",
 ]
 
 _TASA_RE = re.compile(r"capitalizable\s+([\d,\.]+)\s*%", re.IGNORECASE)
